@@ -1,75 +1,71 @@
 import 'package:flutter/material.dart';
 import 'volume_page.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../supabase_config.dart';
-import 'history_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  Future<void> logout(BuildContext context) async {
-    await SupabaseConfig.client.auth.signOut();
-    Navigator.pushReplacementNamed(context, "/");
-  }
+  final List<Map<String, dynamic>> drinks = const [
+    {"name": "Water", "icon": Icons.opacity, "color": Colors.blue},
+    {"name": "Juice", "icon": Icons.local_drink, "color": Colors.orange},
+    {"name": "Soda", "icon": Icons.local_cafe, "color": Colors.red},
+    {"name": "Coffee", "icon": Icons.coffee, "color": Colors.brown},
+    {"name": "Beer", "icon": Icons.sports_bar, "color": Colors.amber},
+    {"name": "Wine", "icon": Icons.wine_bar, "color": Colors.purple},
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Drink Tracker", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.pushNamed(context, "/history");
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => logout(context),
-          ),
-        ],
-      ),
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(20),
-        children: [
-          DrinkButton(drinkName: "Water", color: Colors.blue),
-          DrinkButton(drinkName: "Juice", color: Colors.orange),
-          DrinkButton(drinkName: "Soda", color: Colors.red),
-          DrinkButton(drinkName: "Coffee", color: Colors.brown),
-        ],
-      ),
-    );
-  }
-}
-
-class DrinkButton extends StatelessWidget {
-  final String drinkName;
-  final Color color;
-
-  const DrinkButton({super.key, required this.drinkName, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => VolumePage(drinkName: drinkName)),
-        );
-      },
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        color: color,
-        elevation: 5,
-        child: Center(
-          child: Text(
-            drinkName,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.purple),
+              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            ),
+            ListTile(title: const Text('Drinks'), onTap: () => Navigator.pushNamed(context, '/home')),
+            ListTile(title: const Text('History'), onTap: () => Navigator.pushNamed(context, '/history')),
+            ListTile(title: const Text('Goals'), onTap: () => Navigator.pushNamed(context, '/goals')),
+          ],
         ),
+      ),
+      appBar: AppBar(title: const Text('Drinks')),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(20),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 20,
+          mainAxisSpacing: 20,
+        ),
+        itemCount: drinks.length,
+        itemBuilder: (context, index) {
+          final drink = drinks[index];
+          return GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => VolumePage(drinkName: drink["name"] as String)),
+            ),
+            child: Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              color: drink["color"] as Color,
+              elevation: 5,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(drink["icon"] as IconData, color: Colors.white, size: 50),
+                    const SizedBox(height: 10),
+                    Text(
+                      drink["name"] as String,
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

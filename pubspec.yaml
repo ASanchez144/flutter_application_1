@@ -16,13 +16,13 @@ dependencies:
     sdk: flutter
   sqflite: ^2.2.0
   path_provider: ^2.1.1
-  supabase_flutter: ^1.10.16  # Supabase for online database (optional)
+  supabase_flutter: ^1.10.16
   google_fonts: ^6.1.0
+  intl: ^0.19.0  # Fixes timestamp formatting issues
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^5.0.0
 
 flutter:
@@ -32,5 +32,4 @@ flutter:
   generate: true
 
   assets:
-    # Add assets from the images directory to the application.
     - assets/images/

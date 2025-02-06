@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';  // 📅 Import intl for date formatting
 import '../database_helper.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
   @override
-  _HistoryPageState createState() => _HistoryPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
   List<Map<String, dynamic>> drinks = [];
   String selectedFilter = "today";
+  String viewMode = "individual";  // New: 'individual' or 'totals'
   bool isLoading = false;
-  String errorMessage = "";
 
   @override
   void initState() {
@@ -21,27 +22,12 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> loadDrinks() async {
+    setState(() => isLoading = true);
+    final data = await DatabaseHelper.instance.getDrinks(selectedFilter);
     setState(() {
-      isLoading = true;
-      errorMessage = "";
+      drinks = data;
+      isLoading = false;
     });
-
-    try {
-      final localData = await DatabaseHelper.instance.getDrinks(selectedFilter);
-      print("📂 Local Drinks: $localData");
-
-      final cloudData = await DatabaseHelper.instance.getDrinksFromSupabase();
-      print("☁️ Supabase Drinks: $cloudData");
-
-      setState(() => drinks = [...localData, ...cloudData]);
-    } catch (e) {
-      setState(() {
-        errorMessage = "❌ Error loading drink history.";
-        print("❌ Error: $e");
-      });
-    } finally {
-      setState(() => isLoading = false);
-    }
   }
 
   @override
@@ -51,62 +37,88 @@ class _HistoryPageState extends State<HistoryPage> {
       body: Column(
         children: [
           // Filter Buttons
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ["today", "week", "month", "year"].map((filter) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedFilter == filter ? Colors.blue : Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        selectedFilter = filter;
-                      });
-                      loadDrinks();
-                    },
-                    child: Text(filter.toUpperCase()),
-                  ),
-                );
-              }).toList(),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: ["today", "week", "month", "year"].map((filter) {
+              return ElevatedButton(
+                onPressed: () {
+                  setState(() => selectedFilter = filter);
+                  loadDrinks();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: selectedFilter == filter ? Colors.purple : Colors.grey,
+                ),
+                child: Text(filter.toUpperCase()),
+              );
+            }).toList(),
           ),
 
-          // Loading Indicator
+          // View Mode Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: ["individual", "totals"].map((mode) {
+              return ElevatedButton(
+                onPressed: () {
+                  setState(() => viewMode = mode);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: viewMode == mode ? Colors.purple : Colors.grey,
+                ),
+                child: Text(mode.toUpperCase()),
+              );
+            }).toList(),
+          ),
+
           if (isLoading) const LinearProgressIndicator(),
 
-          // Error Message
-          if (errorMessage.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
-            ),
-
-          // Drink List
           Expanded(
-            child: drinks.isEmpty && !isLoading
+            child: drinks.isEmpty
                 ? const Center(child: Text("No drinks recorded"))
-                : ListView.builder(
-                    itemCount: drinks.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        elevation: 4,
-                        margin: const EdgeInsets.all(8),
-                        child: ListTile(
-                          title: Text(
-                            "${drinks[index]['name']} - ${drinks[index]['volume']}ml",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(drinks[index]['timestamp']),
-                        ),
-                      );
-                    },
-                  ),
+                : viewMode == "individual" ? _buildIndividualView() : _buildTotalsView(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIndividualView() {
+    return ListView.builder(
+      itemCount: drinks.length,
+      itemBuilder: (context, index) {
+        final drink = drinks[index];
+        final date = DateTime.parse(drink['timestamp']).toLocal();
+        final formattedDate = DateFormat('dd/MM HH:mm').format(date);  // 📅 Format date
+
+        return ListTile(
+          title: Text("${drink['name']} - ${drink['volume']} L"),
+          subtitle: Text(formattedDate),
+        );
+      },
+    );
+  }
+
+  Widget _buildTotalsView() {
+    final totals = <String, Map<String, dynamic>>{};
+
+    for (var drink in drinks) {
+      if (totals.containsKey(drink['name'])) {
+        totals[drink['name']]!['volume'] += drink['volume'];
+        totals[drink['name']]!['count'] += 1;
+      } else {
+        totals[drink['name']] = {
+          'volume': drink['volume'],
+          'count': 1,
+        };
+      }
+    }
+
+    return ListView(
+      children: totals.entries.map((entry) {
+        return ListTile(
+          title: Text("${entry.key}"),
+          subtitle: Text("Total Volume: ${entry.value['volume']} L | Count: ${entry.value['count']}"),
+        );
+      }).toList(),
     );
   }
 }

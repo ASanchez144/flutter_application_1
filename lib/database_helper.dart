@@ -1,68 +1,72 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_config.dart';
 
 class DatabaseHelper {
-  static Database? _database;
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
   DatabaseHelper._internal();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
-  }
+  /// Adds a drink to Supabase
+  Future<void> addDrink(String name, double volume) async {
+    final user = SupabaseConfig.client.auth.currentUser;  // Get the current user session
 
-  Future<Database> _initDatabase() async {
-    try {
-      final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'drinks.db');
-      return await openDatabase(
-        path,
-        version: 1,
-        onCreate: (db, version) {
-          return db.execute(
-            "CREATE TABLE drinks(id INTEGER PRIMARY KEY, name TEXT, volume INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)",
-          );
-        },
-      );
-    } catch (e) {
-      print("❌ Database Initialization Error: $e");
-      rethrow;
+    if (user == null) {
+      print("❌ No authenticated user found!");
+      return;
     }
-  }
 
-  Future<void> addDrink(String name, int volume) async {
-    final db = await database;
-    await db.insert("drinks", {
+    final drinkData = {
+      "user_id": user.id,  // Make sure this matches the logged-in user's ID
       "name": name,
       "volume": volume,
-      "timestamp": DateTime.now().toIso8601String(),
-    });
-    print("✅ Drink Added: $name - $volume ml");
+      "timestamp": DateTime.now().toUtc().toIso8601String(),  // Ensure UTC storage
+    };
+
+    try {
+      await SupabaseConfig.client.from("drinks").insert(drinkData);
+      print("☁️ Synced to Supabase: $drinkData");
+    } catch (e) {
+      print("❌ Supabase Sync Error: $e");
+    }
   }
 
+  /// Retrieves drinks from Supabase with a time filter
   Future<List<Map<String, dynamic>>> getDrinks(String filter) async {
-    final db = await database;
-    DateTime now = DateTime.now();
-    String query = "SELECT * FROM drinks WHERE timestamp >= ? ORDER BY timestamp DESC";
-    List<dynamic> args = [];
+    final user = SupabaseConfig.client.auth.currentUser;  // Ensure user session is active
 
-    if (filter == "today") {
-      args.add(DateTime(now.year, now.month, now.day).toIso8601String());
-    } else if (filter == "week") {
-      args.add(DateTime(now.year, now.month, now.day - now.weekday).toIso8601String());
-    } else if (filter == "month") {
-      args.add(DateTime(now.year, now.month, 1).toIso8601String());
-    } else if (filter == "year") {
-      args.add(DateTime(now.year, 1, 1).toIso8601String());
-    } else {
-      return await db.query("drinks", orderBy: "timestamp DESC");
+    if (user == null) {
+      print("❌ No authenticated user found!");
+      return [];
     }
 
-    final result = await db.rawQuery(query, args);
-    print("📋 Retrieved Drinks: $result");
-    return result;
+    DateTime now = DateTime.now();
+    DateTime? startDate;
+
+    if (filter == "today") {
+      startDate = DateTime(now.year, now.month, now.day);
+    } else if (filter == "week") {
+      startDate = now.subtract(Duration(days: now.weekday - 1));
+    } else if (filter == "month") {
+      startDate = DateTime(now.year, now.month, 1);
+    } else if (filter == "year") {
+      startDate = DateTime(now.year, 1, 1);
+    }
+
+    try {
+      final response = await SupabaseConfig.client
+          .from("drinks")
+          .select("*")
+          .eq('user_id', user.id)  // Filter drinks for the logged-in user
+          .gte('timestamp', startDate?.toUtc().toIso8601String() ?? '')  // Query in UTC
+          .order('timestamp', ascending: false)
+          .execute();
+
+      final data = response.data as List<dynamic>;
+      print("☁️ Retrieved Supabase Drinks: $data");
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      print("❌ Error Fetching Drinks from Supabase: $e");
+      return [];
+    }
   }
 }
