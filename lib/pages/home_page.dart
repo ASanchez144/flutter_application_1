@@ -1,35 +1,14 @@
 import 'package:flutter/material.dart';
 import 'volume_page.dart';
+import 'drinks_data.dart';  // Import the external drink data
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  final List<Map<String, dynamic>> drinks = const [
-    {"name": "Water", "icon": Icons.opacity, "color": Colors.blue},
-    {"name": "Juice", "icon": Icons.local_drink, "color": Colors.orange},
-    {"name": "Soda", "icon": Icons.local_cafe, "color": Colors.red},
-    {"name": "Coffee", "icon": Icons.coffee, "color": Colors.brown},
-    {"name": "Beer", "icon": Icons.sports_bar, "color": Colors.amber},
-    {"name": "Wine", "icon": Icons.wine_bar, "color": Colors.purple},
-  ];
+  const HomePage({super.key});  // We can safely keep const here
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.purple),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
-            ),
-            ListTile(title: const Text('Drinks'), onTap: () => Navigator.pushNamed(context, '/home')),
-            ListTile(title: const Text('History'), onTap: () => Navigator.pushNamed(context, '/history')),
-            ListTile(title: const Text('Goals'), onTap: () => Navigator.pushNamed(context, '/goals')),
-          ],
-        ),
-      ),
+      drawer: const AppDrawer(),  // Custom Drawer Widget (cleaner)
       appBar: AppBar(title: const Text('Drinks')),
       body: GridView.builder(
         padding: const EdgeInsets.all(20),
@@ -38,34 +17,81 @@ class HomePage extends StatelessWidget {
           crossAxisSpacing: 20,
           mainAxisSpacing: 20,
         ),
-        itemCount: drinks.length,
+        itemCount: DrinkData.drinks.length,
         itemBuilder: (context, index) {
-          final drink = drinks[index];
+          final drink = DrinkData.drinks[index];
           return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => VolumePage(drinkName: drink["name"] as String)),
-            ),
-            child: Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => VolumePage(drinkName: drink["name"] as String)),
+              );
+            },
+            child: DrinkCard(
+              name: drink["name"] as String,
+              iconPath: drink["iconPath"] as String,
               color: drink["color"] as Color,
-              elevation: 5,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(drink["icon"] as IconData, color: Colors.white, size: 50),
-                    const SizedBox(height: 10),
-                    Text(
-                      drink["name"] as String,
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// Custom Drawer for Navigation (keeps UI clean)
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blueGrey),
+            child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+          ),
+          ListTile(title: const Text('Drinks'), onTap: () => Navigator.pushNamed(context, '/home')),
+          ListTile(title: const Text('History'), onTap: () => Navigator.pushNamed(context, '/history')),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom Widget to handle image icons and text
+class DrinkCard extends StatelessWidget {
+  final String name;
+  final String iconPath;
+  final Color color;
+
+  const DrinkCard({
+    super.key,
+    required this.name,
+    required this.iconPath,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: color,
+      elevation: 5,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(iconPath, width: 50, height: 50, color: Colors.white),  // Use custom icon
+            const SizedBox(height: 10),
+            Text(
+              name,
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }

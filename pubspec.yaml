@@ -33,3 +33,14 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/icons/icon_water.png
+    - assets/icons/icon_juice.png
+    - assets/icons/icon_soda.png
+    - assets/icons/icon_water.png
+    - assets/icons/icon_shot.png
+    - assets/icons/icon_cup.png
+    - assets/icons/icon_glass.png
+    - assets/icons/icon_pint.png
+    - assets/icons/icon_coffee.png
+    - assets/icons/icon_beer.png
+    - assets/icons/icon_wine.png

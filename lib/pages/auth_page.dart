@@ -1,96 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../supabase_config.dart';
 import 'home_page.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
 
   @override
-  State<AuthPage> createState() => _AuthPageState();
+  _AuthPageState createState() => _AuthPageState();
 }
 
 class _AuthPageState extends State<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  String _error = "";
+  String _errorMessage = '';
 
   Future<void> _signIn() async {
     setState(() {
       _isLoading = true;
-      _error = "";
+      _errorMessage = '';
     });
 
-    final response = await Supabase.instance.client.auth.signInWithPassword(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
+    try {
+      final response = await SupabaseConfig.client.auth.signInWithPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-    if (response.user != null) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
-    } else {
-      setState(() => _error = "❌ Login failed. Check credentials.");
+      if (response.user != null) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+      } else {
+        setState(() => _errorMessage = 'Invalid login credentials');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Login error: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
   }
 
   Future<void> _register() async {
     setState(() {
       _isLoading = true;
-      _error = "";
+      _errorMessage = '';
     });
 
-    final response = await Supabase.instance.client.auth.signUp(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
+    try {
+      final response = await SupabaseConfig.client.auth.signUp(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-    if (response.user != null) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
-    } else {
-      setState(() => _error = "❌ Registration failed. Try again.");
+      if (response.user != null) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+      } else {
+        setState(() => _errorMessage = 'Registration failed. Try again.');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Registration error: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Sign In")),
+      appBar: AppBar(title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            if (_error.isNotEmpty)
-              Text(_error, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 24),
             if (_isLoading) const CircularProgressIndicator(),
-            if (!_isLoading)
-              Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: _signIn,
-                    child: const Text('Sign In'),
-                  ),
-                  TextButton(
-                    onPressed: _register,
-                    child: const Text('Register'),
-                  ),
-                ],
-              ),
+            if (_errorMessage.isNotEmpty)
+              Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(onPressed: _signIn, child: const Text('Login')),
+                ElevatedButton(onPressed: _register, child: const Text('Register')),
+              ],
+            ),
           ],
         ),
       ),

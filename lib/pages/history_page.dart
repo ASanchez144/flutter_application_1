@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';  // 📅 Import intl for date formatting
 import '../database_helper.dart';
+import 'package:intl/intl.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
   @override
-  State<HistoryPage> createState() => _HistoryPageState();
+  _HistoryPageState createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
   List<Map<String, dynamic>> drinks = [];
   String selectedFilter = "today";
-  String viewMode = "individual";  // New: 'individual' or 'totals'
+  String viewMode = "individual"; // Individual or Totals
   bool isLoading = false;
+  String errorMessage = "";
 
   @override
   void initState() {
@@ -22,12 +23,22 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> loadDrinks() async {
-    setState(() => isLoading = true);
-    final data = await DatabaseHelper.instance.getDrinks(selectedFilter);
     setState(() {
-      drinks = data;
-      isLoading = false;
+      isLoading = true;
+      errorMessage = "";
     });
+
+    try {
+      final data = await DatabaseHelper.instance.getDrinks(selectedFilter);
+      setState(() => drinks = data);
+    } catch (e) {
+      setState(() {
+        errorMessage = "❌ Error loading drink history.";
+        print("❌ Error: $e");
+      });
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
 
   @override
@@ -36,89 +47,129 @@ class _HistoryPageState extends State<HistoryPage> {
       appBar: AppBar(title: const Text("Drink History")),
       body: Column(
         children: [
-          // Filter Buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ["today", "week", "month", "year"].map((filter) {
-              return ElevatedButton(
-                onPressed: () {
-                  setState(() => selectedFilter = filter);
-                  loadDrinks();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: selectedFilter == filter ? Colors.purple : Colors.grey,
-                ),
-                child: Text(filter.toUpperCase()),
-              );
-            }).toList(),
-          ),
-
-          // View Mode Buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ["individual", "totals"].map((mode) {
-              return ElevatedButton(
-                onPressed: () {
-                  setState(() => viewMode = mode);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: viewMode == mode ? Colors.purple : Colors.grey,
-                ),
-                child: Text(mode.toUpperCase()),
-              );
-            }).toList(),
-          ),
-
+          _buildFilterButtons(),
+          _buildViewModeToggle(),
           if (isLoading) const LinearProgressIndicator(),
-
+          if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
+            ),
           Expanded(
-            child: drinks.isEmpty
+            child: drinks.isEmpty && !isLoading
                 ? const Center(child: Text("No drinks recorded"))
-                : viewMode == "individual" ? _buildIndividualView() : _buildTotalsView(),
+                : viewMode == "individual"
+                    ? _buildIndividualList()
+                    : _buildTotalsView(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildIndividualView() {
+  // Filter Buttons (Today, Week, Month, Year)
+  Widget _buildFilterButtons() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: ["today", "week", "month", "year"].map((filter) {
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedFilter == filter ? Colors.teal : Colors.grey,
+              ),
+              onPressed: () {
+                setState(() => selectedFilter = filter);
+                loadDrinks();
+              },
+              child: Text(filter.toUpperCase()),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // View Mode Toggle (Individual / Totals)
+  Widget _buildViewModeToggle() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: () => setState(() => viewMode = "individual"),
+          child: Text(
+            "Individual",
+            style: TextStyle(color: viewMode == "individual" ? Colors.teal : Colors.grey),
+          ),
+        ),
+        TextButton(
+          onPressed: () => setState(() => viewMode = "totals"),
+          child: Text(
+            "Totals",
+            style: TextStyle(color: viewMode == "totals" ? Colors.teal : Colors.grey),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Individual Drink List (With Conversion to Liters)
+  Widget _buildIndividualList() {
     return ListView.builder(
       itemCount: drinks.length,
       itemBuilder: (context, index) {
         final drink = drinks[index];
-        final date = DateTime.parse(drink['timestamp']).toLocal();
-        final formattedDate = DateFormat('dd/MM HH:mm').format(date);  // 📅 Format date
+        final volumeInLiters = (drink['volume'] as num).toDouble() / 1000; // Convert to liters
+        final formattedDate = DateFormat('dd/MM HH:mm').format(DateTime.parse(drink['timestamp']));
 
-        return ListTile(
-          title: Text("${drink['name']} - ${drink['volume']} L"),
-          subtitle: Text(formattedDate),
+        return Card(
+          elevation: 4,
+          margin: const EdgeInsets.all(8),
+          child: ListTile(
+            title: Text(
+              "${drink['name']} - ${volumeInLiters.toStringAsFixed(1)} L", // Display in liters
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(formattedDate),
+          ),
         );
       },
     );
   }
 
+  // Totals View: Aggregate Volumes by Drink Type
   Widget _buildTotalsView() {
-    final totals = <String, Map<String, dynamic>>{};
+    final Map<String, double> totals = {};
 
     for (var drink in drinks) {
-      if (totals.containsKey(drink['name'])) {
-        totals[drink['name']]!['volume'] += drink['volume'];
-        totals[drink['name']]!['count'] += 1;
+      final name = drink['name'] as String;
+      final volumeInLiters = (drink['volume'] as num).toDouble() / 1000;
+
+      if (totals.containsKey(name)) {
+        totals[name] = totals[name]! + volumeInLiters;
       } else {
-        totals[drink['name']] = {
-          'volume': drink['volume'],
-          'count': 1,
-        };
+        totals[name] = volumeInLiters;
       }
     }
 
-    return ListView(
-      children: totals.entries.map((entry) {
-        return ListTile(
-          title: Text("${entry.key}"),
-          subtitle: Text("Total Volume: ${entry.value['volume']} L | Count: ${entry.value['count']}"),
+    return ListView.builder(
+      itemCount: totals.length,
+      itemBuilder: (context, index) {
+        final drinkName = totals.keys.elementAt(index);
+        final totalVolume = totals[drinkName]!;
+
+        return Card(
+          elevation: 4,
+          margin: const EdgeInsets.all(8),
+          child: ListTile(
+            title: Text(
+              "$drinkName - ${totalVolume.toStringAsFixed(1)} L", // Display total in liters
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         );
-      }).toList(),
+      },
     );
   }
 }

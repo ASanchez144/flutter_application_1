@@ -3,23 +3,17 @@ import 'supabase_config.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
-
   DatabaseHelper._internal();
 
-  /// Adds a drink to Supabase
-  Future<void> addDrink(String name, double volume) async {
-    final user = SupabaseConfig.client.auth.currentUser;  // Get the current user session
+  final user = SupabaseConfig.client.auth.currentUser;
 
-    if (user == null) {
-      print("❌ No authenticated user found!");
-      return;
-    }
-
+  /// Add a drink (stored in milliliters)
+  Future<void> addDrink(String name, double volumeInLiters) async {
     final drinkData = {
-      "user_id": user.id,  // Make sure this matches the logged-in user's ID
+      "user_id": user?.id,
       "name": name,
-      "volume": volume,
-      "timestamp": DateTime.now().toUtc().toIso8601String(),  // Ensure UTC storage
+      "volume": (volumeInLiters * 1000).toInt(),  // Convert liters to milliliters before storing
+      "timestamp": DateTime.now().toUtc().toIso8601String(),
     };
 
     try {
@@ -30,15 +24,8 @@ class DatabaseHelper {
     }
   }
 
-  /// Retrieves drinks from Supabase with a time filter
+  /// Retrieve drinks (convert from milliliters to liters)
   Future<List<Map<String, dynamic>>> getDrinks(String filter) async {
-    final user = SupabaseConfig.client.auth.currentUser;  // Ensure user session is active
-
-    if (user == null) {
-      print("❌ No authenticated user found!");
-      return [];
-    }
-
     DateTime now = DateTime.now();
     DateTime? startDate;
 
@@ -56,14 +43,23 @@ class DatabaseHelper {
       final response = await SupabaseConfig.client
           .from("drinks")
           .select("*")
-          .eq('user_id', user.id)  // Filter drinks for the logged-in user
-          .gte('timestamp', startDate?.toUtc().toIso8601String() ?? '')  // Query in UTC
+          .gte('timestamp', startDate?.toUtc().toIso8601String() ?? '')
           .order('timestamp', ascending: false)
           .execute();
 
       final data = response.data as List<dynamic>;
-      print("☁️ Retrieved Supabase Drinks: $data");
-      return List<Map<String, dynamic>>.from(data);
+
+      // Convert volume from milliliters to liters for display
+      final drinks = data.map((drink) {
+        return {
+          "name": drink['name'],
+          "volume": (drink['volume'] as int) / 1000,  // Convert mL to Liters
+          "timestamp": drink['timestamp'],
+        };
+      }).toList();
+
+      print("☁️ Retrieved Supabase Drinks: $drinks");
+      return drinks;
     } catch (e) {
       print("❌ Error Fetching Drinks from Supabase: $e");
       return [];

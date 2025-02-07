@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/auth_page.dart';
 import 'pages/home_page.dart';
 import 'pages/history_page.dart';
-import 'pages/volume_page.dart';
-import 'pages/goals_page.dart';
-import 'supabase_config.dart';
+import 'supabase_config.dart';  // Ensure this has your Supabase URL and anon key
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseConfig.initialize();  // Initialize Supabase here
+
+  // Initialize Supabase before the app runs
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
   runApp(const DrinkTrackerApp());
 }
 
@@ -21,14 +26,26 @@ class DrinkTrackerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Drink Tracker',
       theme: ThemeData(
-        primarySwatch: Colors.purple,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        primarySwatch: Colors.teal,
+        scaffoldBackgroundColor: Colors.grey[100],
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.teal,
+          foregroundColor: Colors.white,
+          elevation: 2,
+        ),
+        cardTheme: CardTheme(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 4,
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(fontSize: 16, color: Colors.black87),
+          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal),
+        ),
       ),
       home: const AuthPage(),
       routes: {
         '/home': (context) => const HomePage(),
         '/history': (context) => const HistoryPage(),
-        //'/goals': (context) => const GoalsPage(),
       },
     );
   }

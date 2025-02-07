@@ -4,26 +4,19 @@ import '../database_helper.dart';
 class VolumePage extends StatelessWidget {
   final String drinkName;
 
-  VolumePage({required this.drinkName});
-
-  final List<Map<String, dynamic>> volumes = const [
-    {"label": "Shot", "volume": 0.06},
-    {"label": "Glass", "volume": 0.2},
-    {"label": "Cup", "volume": 0.25},
-    {"label": "Pint", "volume": 0.586},
-    {"label": "Beer Jar", "volume": 0.75},
-    {"label": "1L", "volume": 1.0},
-  ];
-
-  Future<void> _addDrink(BuildContext context, double volume) async {
-    await DatabaseHelper.instance.addDrink(drinkName, volume);
-    Navigator.pop(context);  // Return to the previous page after saving
-  }
+  const VolumePage({super.key, required this.drinkName});
 
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> volumes = [
+      {"label": "Shot", "icon": 'assets/icons/icon_shot.png', "volume": 60},   // 60 ml
+      {"label": "Cup", "icon": 'assets/icons/icon_cup.png', "volume": 200},    // 200 ml
+      {"label": "Glass", "icon": 'assets/icons/icon_glass.png', "volume": 250},// 250 ml
+      {"label": "Pint", "icon": 'assets/icons/icon_pint.png', "volume": 586},  // 586 ml
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: Text('$drinkName Volumes')),
+      appBar: AppBar(title: Text('Select Volume for $drinkName')),
       body: GridView.builder(
         padding: const EdgeInsets.all(20),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -33,27 +26,47 @@ class VolumePage extends StatelessWidget {
         ),
         itemCount: volumes.length,
         itemBuilder: (context, index) {
-          final volumeInfo = volumes[index];
+          final volume = volumes[index];
           return GestureDetector(
-            onTap: () => _addDrink(context, volumeInfo['volume']),
-            child: Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              elevation: 5,
-              color: Colors.purple[100],
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.local_drink, size: 50, color: Colors.purple),
-                    const SizedBox(height: 10),
-                    Text(volumeInfo['label'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    Text('${volumeInfo['volume']} L', style: const TextStyle(fontSize: 16)),
-                  ],
-                ),
-              ),
+            onTap: () {
+              final int volumeInMl = volume["volume"] as int;  // Ensure it's int
+              DatabaseHelper.instance.addDrink(drinkName, volumeInMl.toDouble());  // Convert safely to double
+              Navigator.pop(context);
+            },
+            child: VolumeCard(
+              label: volume["label"] as String,
+              iconPath: volume["icon"] as String,
+              volume: volume["volume"] as int,
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// Custom widget for volume cards
+class VolumeCard extends StatelessWidget {
+  final String label;
+  final String iconPath;
+  final int volume;
+
+  const VolumeCard({super.key, required this.label, required this.iconPath, required this.volume});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 5,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(iconPath, width: 50, height: 50),
+            const SizedBox(height: 10),
+            Text('$label (${(volume / 1000).toStringAsFixed(1)} L)', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
