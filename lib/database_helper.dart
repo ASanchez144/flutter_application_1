@@ -24,26 +24,39 @@ class DatabaseHelper {
     }
   }
 
-  /// Retrieve drinks (convert from milliliters to liters)
+  /// Retrieve drinks based on date filter (convert from milliliters to liters)
   Future<List<Map<String, dynamic>>> getDrinks(String filter) async {
-    DateTime now = DateTime.now();
-    DateTime? startDate;
+    DateTime now = DateTime.now().toUtc();  // Ensure UTC for accurate comparison
+    DateTime? startDate, endDate;
 
+    // Set the start and end dates based on the filter
     if (filter == "today") {
-      startDate = DateTime(now.year, now.month, now.day);
+      startDate = DateTime.utc(now.year, now.month, now.day);
+      endDate = startDate.add(const Duration(days: 1));
     } else if (filter == "week") {
       startDate = now.subtract(Duration(days: now.weekday - 1));
+      startDate = DateTime.utc(startDate.year, startDate.month, startDate.day);
+      endDate = startDate.add(const Duration(days: 7));
     } else if (filter == "month") {
-      startDate = DateTime(now.year, now.month, 1);
+      startDate = DateTime.utc(now.year, now.month, 1);
+      endDate = DateTime.utc(now.year, now.month + 1, 1);
     } else if (filter == "year") {
-      startDate = DateTime(now.year, 1, 1);
+      startDate = DateTime.utc(now.year, 1, 1);
+      endDate = DateTime.utc(now.year + 1, 1, 1);
+    }
+
+    // Ensure startDate and endDate are not null
+    if (startDate == null || endDate == null) {
+      print("❌ Date filter error: startDate or endDate is null");
+      return [];
     }
 
     try {
       final response = await SupabaseConfig.client
           .from("drinks")
           .select("*")
-          .gte('timestamp', startDate?.toUtc().toIso8601String() ?? '')
+          .gte('timestamp', startDate.toIso8601String())  // Null-safe usage
+          .lt('timestamp', endDate.toIso8601String())    // Null-safe usage
           .order('timestamp', ascending: false)
           .execute();
 
